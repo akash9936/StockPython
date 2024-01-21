@@ -36,6 +36,9 @@ def main():
         # Call a function to analyze data and update the HTML content
         analyze_data(from_date, from_time, to_date, to_time)
 
+def highlight_buy_signal(s):
+    return ['background-color: lightgreen' if v else '' for v in s]
+
 def analyze_data(from_date, from_time, to_date, to_time):
     try:
         format_str = '%d-%b-%Y %H:%M:%S'
@@ -46,10 +49,6 @@ def analyze_data(from_date, from_time, to_date, to_time):
         slice_data = total_data // 2
 
         half_time = (from_datetime + (to_datetime - from_datetime) // 2).strftime(format_str)
-
-        print(f"from_datetime1: {from_datetime.strftime(format_str)}")
-        print(f"to_datetime: {to_datetime.strftime(format_str)}")
-        print(f"half_time: {half_time}")
 
         last_records_cursor = collection.find({
             'timestamp': {'$gte': half_time, '$lt': to_datetime.strftime(format_str)}
@@ -68,11 +67,9 @@ def analyze_data(from_date, from_time, to_date, to_time):
         previous_records = list(previous_records_cursor)
 
         if not previous_records:
-            st.error('Error: No data found in previousRecords MongoDB.')
+            st.error('Error: No data found in lastRecords MongoDB.')
         else:
             print("Previous records found")
-          #  for record in previous_records:
-          #      print(record)
 
         symbols_last_prices_last = []
         symbols_last_prices_previous = []
@@ -116,8 +113,10 @@ def analyze_data(from_date, from_time, to_date, to_time):
         symbols_data['buy_signal'] = (symbols_data['min_last_price_last'] > symbols_data['min_last_price_previous']) & \
                                     (symbols_data['max_last_price_last'] < symbols_data['max_last_price_previous'])
 
-        st.dataframe(symbols_data)
-        
+        symbols_data = symbols_data.sort_values(by='buy_signal', ascending=False)
+
+        st.dataframe(symbols_data.style.apply(highlight_buy_signal, subset=['buy_signal']))
+
         st.success("Data analysis successful!")
     except Exception as e:
         st.error(f"Error fetching data: {str(e)}")
